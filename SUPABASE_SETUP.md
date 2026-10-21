@@ -1,6 +1,6 @@
 # Connect ShopStock to Supabase
 
-This repository currently contains a static marketing page and a browser-only inventory prototype. This setup adds a starter database schema; it does **not** by itself make the current app cloud-connected or production-ready.
+The repository contains a public marketing page and an early Supabase-backed workspace at cloud.html. The workspace is a pilot build, not production-ready. The setup below connects it to your own Supabase project; the repository cannot run SQL inside your account on your behalf.
 
 ## 1. Create a Supabase project
 1. Open https://supabase.com/ and create a project in your own account.
@@ -31,7 +31,7 @@ The cloud workspace now uses a database function so stock quantity and movement 
 - Never put a Supabase `service_role` / secret key in frontend code, HTML, mobile apps, screenshots, or GitHub.
 - A publishable/anon key is designed for client-side use only when RLS is correctly configured.
 - The legacy `app.html` prototype still uses browser local storage. Use `cloud.html` for the Supabase-backed workspace; it saves to Supabase only after a project is connected and you are signed in.
-- Stock updates should eventually be handled by a database transaction/RPC so quantity changes and movement history cannot get out of sync.
+- The cloud workspace calls adjust_shopstock_inventory so stock quantity and movement history are updated together. The upgrade_atomic_stock.sql script must be run before stock-in/sale actions can work.
 - The cloud workspace includes signup/sign-in, password reset, shop onboarding, product search, CSV export, low-stock indicators, and stock movement history. Before production: test auth email redirects, RLS isolation with two accounts, backups, privacy/terms, error monitoring, and payment-provider webhooks. Do not store card details yourself.
 
 ## Planned core tables
@@ -40,4 +40,4 @@ The cloud workspace now uses a database function so stock quantity and movement 
 - `stock_movements`: append-only history of stock changes.
 
 ## Current status
-Starter schema and cloud workspace UI are committed. The app still requires the project URL/public key entered by the owner, the atomic-stock upgrade SQL to be run, and end-to-end testing. Subscription billing is not enabled; do not treat this as production-ready until RLS and account-isolation tests pass.
+The landing page and cloud workspace are deployed through GitHub Pages. The owner must configure the Supabase URL/public key, run both SQL scripts, complete account verification as needed, and test shop creation, stock changes, CSV export, and isolation between two accounts. Subscription billing, supplier/purchase management, full sales reporting, staff roles, automated backups, and production monitoring are not enabled. Do not use for live customer data until security and recovery checks pass.
