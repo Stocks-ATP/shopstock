@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ShopStock Cloud — Inventory</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--g:#168653;--dark:#123a2b;--mint:#eaf7ef;--bg:#f5f8f5;--line:#e1e9e2;--muted:#6b7c71;--red:#c43d3d}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#1d2b23;font:14px/1.5 Inter,system-ui,-apple-system,Segoe UI,sans-serif}button,input{font:inherit}button{cursor:pointer}.wrap{max-width:1120px;margin:auto;padding:24px}.head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}.brand{font-size:24px;font-weight:850;color:var(--dark)}.brand span{color:var(--g)}.sub{color:var(--muted);font-size:12px}.card{background:white;border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:16px}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.field{display:grid;gap:5px;flex:1;min-width:160px;margin:7px 0}.field label{font-size:12px;color:var(--muted);font-weight:700}.field input{width:100%;border:1px solid var(--line);border-radius:9px;padding:11px;background:#fff}.btn{border:0;border-radius:9px;padding:10px 14px;background:var(--g);color:white;font-weight:750}.btn.alt{background:white;color:var(--dark);border:1px solid var(--line)}.btn.danger{background:#fff0f0;color:var(--red);border:1px solid #f2d1d1}.hidden{display:none!important}.status{padding:10px 12px;background:var(--mint);color:var(--dark);border-radius:10px;margin:10px 0}.status.err{background:#fff0f0;color:var(--red)}h1{font-size:26px;margin:0}h2{font-size:17px;margin:0 0 12px}.stat{font-size:25px;font-weight:800}.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;min-width:620px}th,td{text-align:left;padding:12px 9px;border-bottom:1px solid #edf1ed}th{font-size:11px;color:var(--muted);text-transform:uppercase}td button{margin:2px}.badge{background:var(--mint);color:var(--g);border-radius:30px;padding:4px 8px;font-size:11px;font-weight:750}.tiny{font-size:12px;color:var(--muted)}@media(max-width:650px){.wrap{padding:14px}.grid{grid-template-columns:1fr}.head{align-items:flex-start;flex-direction:column}.card{padding:15px}}
+</style></head><body><main class="wrap">
+<header class="head"><div><div class="brand">Shop<span>Stock</span> Cloud</div><div class="sub">Cloud inventory workspace · early MVP</div></div><div class="row"><span id="who" class="tiny">Not connected</span><button id="logout" class="btn alt hidden">Sign out</button></div></header>
+<div class="card" id="configCard"><h2>1. Connect your Supabase project</h2><p class="tiny">Use your Project URL and publishable key (or legacy anon key). Never enter a service-role/secret key here.</p><div class="row"><div class="field"><label>Supabase Project URL</label><input id="projectUrl" placeholder="https://your-project.supabase.co" autocomplete="url"></div><div class="field"><label>Publishable / anon key</label><input id="publicKey" placeholder="sb_publishable_… or eyJ…" autocomplete="off"></div></div><div class="row"><button class="btn" id="connect">Connect</button><button class="btn alt" id="clearConfig">Clear saved config</button></div><div id="configStatus" class="tiny"></div></div>
+<div class="card hidden" id="authCard"><h2>2. Sign in or create an account</h2><p class="tiny">Use a real email you can access. Supabase may send a confirmation email.</p><div class="row"><div class="field"><label>Email</label><input id="email" type="email" placeholder="you@example.com" autocomplete="email"></div><div class="field"><label>Password (8+ characters recommended)</label><input id="password" type="password" placeholder="Create or enter password" autocomplete="current-password"></div></div><div class="row"><button class="btn" id="signup">Create account</button><button class="btn alt" id="signin">Sign in</button></div><div id="authStatus" class="tiny"></div></div>
+<div class="card hidden" id="setupCard"><h2>3. Set up your shop</h2><div class="row"><div class="field"><label>Shop name</label><input id="shopName" placeholder="e.g. Life Style Mobiles"></div><button class="btn" id="createShop">Create shop</button></div><div id="shopStatus" class="tiny"></div></div>
+<div id="workspace" class="hidden">
+<div class="grid"><div class="card"><div class="tiny">Total products</div><div id="count" class="stat">0</div></div><div class="card"><div class="tiny">Units in stock</div><div id="units" class="stat">0</div></div><div class="card"><div class="tiny">Low / out of stock</div><div id="low" class="stat">0</div></div></div>
+<div class="card"><h2>Add a product</h2><div class="row"><div class="field"><label>Product name</label><input id="pName" placeholder="Product name"></div><div class="field"><label>SKU / code</label><input id="pSku" placeholder="Unique product code"></div><div class="field"><label>Category</label><input id="pCategory" placeholder="General"></div></div><div class="row"><div class="field"><label>Opening quantity</label><input id="pQty" type="number" min="0" step="1" value="0"></div><div class="field"><label>Unit price (₹)</label><input id="pPrice" type="number" min="0" step=".01" value="0"></div><div class="field"><label>Low-stock alert at</label><input id="pLow" type="number" min="0" step="1" value="5"></div><button id="addProduct" class="btn">Save product</button></div><div id="productStatus" class="tiny"></div></div>
+<div class="card"><div class="row" style="justify-content:space-between"><h2>Inventory</h2><button id="refresh" class="btn alt">Refresh</button></div><div class="tablewrap"><table><thead><tr><th>Product</th><th>SKU</th><th>Category</th><th>Quantity</th><th>Price</th><th>Stock action</th></tr></thead><tbody id="products"><tr><td colspan="6">Connect your project and sign in.</td></tr></tbody></table></div></div>
+<div class="card"><h2>Recent stock history</h2><div class="tablewrap"><table><thead><tr><th>Date</th><th>Product</th><th>Movement</th><th>Change</th><th>After</th><th>Note</th></tr></thead><tbody id="movements"><tr><td colspan="6">No movements loaded.</td></tr></tbody></table></div></div>
+</div>
+<div class="tiny">Security: this page uses only the public client key and relies on Supabase Row Level Security. Do not use real inventory until you have tested with separate accounts and reviewed the database policies. Stock quantity and movement history are separate writes in this MVP, not an atomic transaction.</div>
+</main>
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+let sb = null, user = null, shop = null, products = [];
+const msg = (id,text,error=false) => { const el=$(id); el.textContent=text; el.className=error?'status err':'status'; };
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const show = (id,on=true) => $(id).classList.toggle('hidden',!on);
+function initClient(){
+ const url=$('projectUrl').value.trim().replace(/\/$/,''); const key=$('publicKey').value.trim();
+ if(!/^https:\/\/[a-zA-Z0-9.-]+\.supabase\.co$/.test(url) || !key){msg('configStatus','Enter a valid Supabase Project URL and public key.',true);return false;}
+ if(!window.supabase?.createClient){msg('configStatus','Could not load Supabase client. Check your internet connection.',true);return false;}
+ sb=window.supabase.createClient(url,key); localStorage.setItem('shopstock_supabase_url',url);localStorage.setItem('shopstock_supabase_key',key);
+ show('authCard');msg('configStatus','Client ready. Public key saved in this browser.');return true;
+}
+async function boot(){
+ if(!sb)return;
+ const {data,error}=await sb.auth.getSession(); if(error){msg('authStatus',error.message,true);return}
+ user=data.session?.user||null;
+ if(user){$('who').textContent=user.email||'Signed in';show('logout');show('authCard',false);await loadShop();}
+ else {$('who').textContent='Not signed in';show('logout',false);show('authCard');show('setupCard',false);show('workspace',false);}
+}
+async function loadShop(){
+ const {data,error}=await sb.from('shops').select('*').order('created_at',{ascending:true}).limit(1);
+ if(error){msg('shopStatus',error.message,true);return}
+ shop=data?.[0]||null;
+ if(!shop){show('setupCard');show('workspace',false);return}
+ $('shopName').value=shop.name;show('setupCard',false);show('workspace');await loadProducts();
+}
+async function loadProducts(){
+ if(!shop)return;
+ const {data,error}=await sb.from('products').select('*').eq('shop_id',shop.id).order('name');
+ if(error){msg('productStatus',error.message,true);return}
+ products=data||[];renderProducts();await loadMovements();
+}
+function renderProducts(){
+ $('count').textContent=products.length;
+ $('units').textContent=products.reduce((a,p)=>a+Number(p.quantity),0);
+ $('low').textContent=products.filter(p=>Number(p.quantity)<=Number(p.low_stock_at)).length;
+ $('products').innerHTML=products.length?products.map(p=>'<tr><td><b>'+esc(p.name)+'</b><br><span class="tiny">'+esc(p.category)+'</span></td><td>'+esc(p.sku)+'</td><td>'+esc(p.category)+'</td><td><span class="badge">'+Number(p.quantity)+'</span></td><td>₹'+Number(p.unit_price).toFixed(2)+'</td><td><button class="btn alt" data-stock="'+p.id+'" data-delta="1">+ Add</button><button class="btn alt" data-stock="'+p.id+'" data-delta="-1">− Sale</button><button class="btn danger" data-delete="'+p.id+'">Delete</button></td></tr>').join(''):'<tr><td colspan="6">No products yet. Add your first product above.</td></tr>';
+}
+async function loadMovements(){
+ const {data,error}=await sb.from('stock_movements').select('id,created_at,movement_type,quantity_change,quantity_after,note,products(name)').eq('shop_id',shop.id).order('created_at',{ascending:false}).limit(20);
+ if(error){$('movements').innerHTML='<tr><td colspan="6">'+esc(error.message)+'</td></tr>';return}
+ $('movements').innerHTML=data?.length?data.map(m=>'<tr><td>'+new Date(m.created_at).toLocaleString()+'</td><td>'+esc(m.products?.name||'Product')+'</td><td>'+esc(m.movement_type)+'</td><td>'+Number(m.quantity_change)+'</td><td>'+Number(m.quantity_after)+'</td><td>'+esc(m.note||'—')+'</td></tr>').join(''):'<tr><td colspan="6">No stock movements recorded yet.</td></tr>';
+}
+$('connect').onclick=()=>{if(initClient())boot()};
+$('clearConfig').onclick=()=>{localStorage.removeItem('shopstock_supabase_url');localStorage.removeItem('shopstock_supabase_key');$('projectUrl').value='';$('publicKey').value='';sb=null;show('authCard',false);msg('configStatus','Saved browser config cleared.')};
+$('signup').onclick=async()=>{if(!sb&&!initClient())return;const email=$('email').value.trim(),password=$('password').value;if(!email||password.length<8){msg('authStatus','Enter an email and a password with at least 8 characters.',true);return}const {data,error}=await sb.auth.signUp({email,password});if(error){msg('authStatus',error.message,true);return}msg('authStatus',data.session?'Account created. Signing you in…':'Account request sent. Check your email for confirmation, then sign in.');await boot()};
+$('signin').onclick=async()=>{if(!sb&&!initClient())return;const {data,error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error){msg('authStatus',error.message,true);return}user=data.user;await boot()};
+$('logout').onclick=async()=>{if(sb)await sb.auth.signOut();user=null;shop=null;show('workspace',false);show('logout',false);show('authCard');$('who').textContent='Signed out'};
+$('createShop').onclick=async()=>{if(!sb||!user)return;const name=$('shopName').value.trim();if(!name){msg('shopStatus','Enter a shop name.',true);return}const {data,error}=await sb.from('shops').insert({owner_id:user.id,name}).select().single();if(error){msg('shopStatus',error.message,true);return}shop=data;show('setupCard',false);show('workspace');await loadProducts()};
+$('addProduct').onclick=async()=>{
+ if(!shop)return;const name=$('pName').value.trim(),sku=$('pSku').value.trim(),qty=Number($('pQty').value),price=Number($('pPrice').value),low=Number($('pLow').value),category=$('pCategory').value.trim()||'General';
+ if(!name||!sku||!Number.isInteger(qty)||qty<0||!Number.isFinite(price)||price<0||!Number.isInteger(low)||low<0){msg('productStatus','Check product name, SKU, quantity, price and low-stock threshold.',true);return}
+ const {data,error}=await sb.from('products').insert({shop_id:shop.id,name,sku,category,quantity:qty,unit_price:price,low_stock_at:low}).select().single();
+ if(error){msg('productStatus',error.message,true);return}
+ if(qty>0){const m=await sb.from('stock_movements').insert({shop_id:shop.id,product_id:data.id,movement_type:'opening_stock',quantity_change:qty,quantity_after:qty,note:'Opening stock',created_by:user.id});if(m.error)msg('productStatus','Product saved, but opening history failed: '+m.error.message,true);else msg('productStatus','Product saved.')}
+ else msg('productStatus','Product saved.');
+ ['pName','pSku','pCategory'].forEach(id=>$(id).value='');$('pQty').value='0';$('pPrice').value='0';$('pLow').value='5';await loadProducts();
+};
+$('products').onclick=async e=>{
+ const stock=e.target.closest('[data-stock]');const del=e.target.closest('[data-delete]');
+ if(stock){const p=products.find(x=>x.id===stock.dataset.stock);if(!p)return;const delta=Number(stock.dataset.delta);const next=Number(p.quantity)+delta;if(next<0){msg('productStatus','Cannot sell more units than are in stock.',true);return}
+ const {error}=await sb.from('products').update({quantity:next,updated_at:new Date().toISOString()}).eq('id',p.id).eq('shop_id',shop.id);if(error){msg('productStatus',error.message,true);return}
+ const m=await sb.from('stock_movements').insert({shop_id:shop.id,product_id:p.id,movement_type:delta>0?'stock_received':'sale',quantity_change:delta,quantity_after:next,note:delta>0?'Stock received':'Sale recorded',created_by:user.id});if(m.error)msg('productStatus','Quantity updated, but movement history failed: '+m.error.message,true);else msg('productStatus',delta>0?'Stock added.':'Sale recorded.');await loadProducts();}
+ if(del){const p=products.find(x=>x.id===del.dataset.delete);if(!p||!confirm('Delete '+p.name+'? Its movement history will also be deleted.'))return;const {error}=await sb.from('products').delete().eq('id',p.id).eq('shop_id',shop.id);if(error){msg('productStatus',error.message,true);return}await loadProducts();msg('productStatus','Product deleted.')}
+};
+$('refresh').onclick=loadProducts;
+const url=localStorage.getItem('shopstock_supabase_url'),key=localStorage.getItem('shopstock_supabase_key');if(url)$('projectUrl').value=url;if(key)$('publicKey').value=key;if(url&&key){initClient();boot()}
+})();
+</script></body></html>
