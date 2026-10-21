@@ -18,7 +18,7 @@ ShopStock is being built as a mobile-friendly inventory and sales management Saa
 
 ## Current status
 
-This repository is the initial project scaffold. It is **not production-ready yet**. No cloud database, authentication, payment integration, or mobile app is connected at this stage. Do not enter real customer, supplier, or financial data into a prototype.
+The repository currently contains a public landing page and an early Supabase-backed browser workspace (cloud.html). The workspace includes email/password signup and sign-in, shop setup, product catalogue, stock-in/sale adjustments with movement history, low-stock indicators, search, and CSV export. It is still a pilot build and **not production-ready**: the owner must configure Supabase, run the schema and stock RPC upgrade SQL, and complete account-isolation and end-to-end testing. Subscription billing, supplier/purchase management, full sales reporting, staff roles, and mobile apps are not yet implemented. Do not enter real customer, supplier, or financial data until security and backups have been reviewed.
 
 ## Planned architecture
 
@@ -42,13 +42,13 @@ Architecture and provider choices will be finalized before production deployment
 
 ## Development roadmap
 
-1. Product requirements and database model
-2. Authentication, shop setup, roles, and secure tenant isolation
-3. Inventory, purchases, sales, and stock movement ledger
-4. Reports, imports/exports, and backup/recovery
-5. Subscription and payment integration
-6. QA, pilot shops, privacy/terms, and production deployment
-7. Mobile/PWA polish and scale testing
+1. Starter Supabase schema and browser workspace (in progress; pilot only)
+2. Finish database setup and test tenant isolation with separate accounts
+3. Add purchase/supplier records, sales records, and reports
+4. Improve import/export, backups, recovery, and auditability
+5. Integrate subscription billing with server-side payment verification
+6. Add privacy/terms, monitoring, QA, and production deployment
+7. Polish PWA/mobile experience and test with pilot shops
 
 ## Local preview
 
