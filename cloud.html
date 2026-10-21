@@ -10,6 +10,7 @@
 <header class="head"><div><div class="brand">Shop<span>Stock</span> Cloud</div><div class="sub">Cloud inventory workspace · pilot build</div></div><div class="row"><span id="who" class="tiny">Not connected</span><button id="logout" class="btn alt hidden">Sign out</button></div></header>
 <div class="card" id="configCard"><h2>1. Connect your Supabase project</h2><p class="tiny">Use your Project URL and publishable key (or legacy anon key). Never enter a service-role/secret key here.</p><div class="row"><div class="field"><label>Supabase Project URL</label><input id="projectUrl" placeholder="https://your-project.supabase.co" autocomplete="url"></div><div class="field"><label>Publishable / anon key</label><input id="publicKey" placeholder="sb_publishable_… or eyJ…" autocomplete="off"></div></div><div class="row"><button class="btn" id="connect">Connect</button><button class="btn alt" id="clearConfig">Clear saved config</button></div><div id="configStatus" class="tiny"></div></div>
 <div class="card hidden" id="authCard"><h2>2. Sign in or create an account</h2><p class="tiny">Use a real email you can access. Supabase may send a confirmation email.</p><div class="row"><div class="field"><label>Email</label><input id="email" type="email" placeholder="you@example.com" autocomplete="email"></div><div class="field"><label>Password (8+ characters recommended)</label><input id="password" type="password" placeholder="Create or enter password" autocomplete="current-password"></div></div><div class="row"><button class="btn" id="signup">Create account</button><button class="btn alt" id="signin">Sign in</button><button class="btn alt" id="resetPassword">Forgot password?</button></div><div id="authStatus" class="tiny"></div></div>
+<div class="card hidden" id="recoveryCard"><h2>Reset your password</h2><p class="tiny">Choose a new password for your ShopStock account.</p><div class="field"><label>New password (at least 8 characters)</label><input id="newPassword" type="password" autocomplete="new-password" placeholder="Enter a new password"></div><button class="btn" id="saveNewPassword">Save new password</button><div id="recoveryStatus" class="tiny"></div></div>
 <div class="card hidden" id="setupCard"><h2>3. Set up your shop</h2><div class="row"><div class="field"><label>Shop name</label><input id="shopName" placeholder="e.g. Life Style Mobiles"></div><button class="btn" id="createShop">Create shop</button></div><div id="shopStatus" class="tiny"></div></div>
 <div id="workspace" class="hidden">
 <div class="grid"><div class="card"><div class="tiny">Total products</div><div id="count" class="stat">0</div></div><div class="card"><div class="tiny">Units in stock</div><div id="units" class="stat">0</div></div><div class="card"><div class="tiny">Low / out of stock</div><div id="low" class="stat">0</div></div></div>
@@ -31,6 +32,12 @@ function initClient(){
  if(!/^https:\/\/[a-zA-Z0-9.-]+\.supabase\.co$/.test(url) || !key){msg('configStatus','Enter a valid Supabase Project URL and public key.',true);return false;}
  if(!window.supabase?.createClient){msg('configStatus','Could not load Supabase client. Check your internet connection.',true);return false;}
  sb=window.supabase.createClient(url,key); localStorage.setItem('shopstock_supabase_url',url);localStorage.setItem('shopstock_supabase_key',key);
+ sb.auth.onAuthStateChange((event) => {
+   if(event==='PASSWORD_RECOVERY'){
+     show('authCard',false);show('recoveryCard');
+     msg('recoveryStatus','Recovery link accepted. Enter a new password below.');
+   }
+ });
  show('authCard');msg('configStatus','Client ready. Public key saved in this browser.');return true;
 }
 async function boot(){
@@ -68,9 +75,10 @@ async function loadMovements(){
 }
 $('connect').onclick=()=>{if(initClient())boot()};
 $('clearConfig').onclick=()=>{localStorage.removeItem('shopstock_supabase_url');localStorage.removeItem('shopstock_supabase_key');$('projectUrl').value='';$('publicKey').value='';sb=null;show('authCard',false);msg('configStatus','Saved browser config cleared.')};
-$('signup').onclick=async()=>{if(!sb&&!initClient())return;const email=$('email').value.trim(),password=$('password').value;if(!email||password.length<8){msg('authStatus','Enter an email and a password with at least 8 characters.',true);return}const {data,error}=await sb.auth.signUp({email,password});if(error){msg('authStatus',error.message,true);return}msg('authStatus',data.session?'Account created. Signing you in…':'Account request sent. Check your email for confirmation, then sign in.');await boot()};
+$('signup').onclick=async()=>{if(!sb&&!initClient())return;const email=$('email').value.trim(),password=$('password').value;if(!email||password.length<8){msg('authStatus','Enter an email and a password with at least 8 characters.',true);return}const {data,error}=await sb.auth.signUp({email,password});if(error){const m=error.message||'Could not create account.';msg('authStatus',/rate limit|too many requests|after .*seconds/i.test(m)?'Supabase is temporarily limiting requests. Wait a minute, then try once.':m,true);return}msg('authStatus',data.session?'Account created. Signing you in…':'Account request sent. Check your email for confirmation, then sign in.');await boot()};
 $('signin').onclick=async()=>{if(!sb&&!initClient())return;const {data,error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error){msg('authStatus',error.message,true);return}user=data.user;await boot()};
 $('resetPassword').onclick=async()=>{if(!sb&&!initClient())return;const email=$('email').value.trim();if(!email){msg('authStatus','Enter your account email first.',true);return}const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});if(error){msg('authStatus',error.message,true);return}msg('authStatus','If this email has an account, a password reset link will be sent. Check your inbox.')};
+$('saveNewPassword').onclick=async()=>{if(!sb&&!initClient())return;const password=$('newPassword').value;if(password.length<8){msg('recoveryStatus','Use a password with at least 8 characters.',true);return}const {error}=await sb.auth.updateUser({password});if(error){msg('recoveryStatus',error.message,true);return}msg('recoveryStatus','Password updated. You can now sign in with your new password.');$('newPassword').value='';show('recoveryCard',false);show('authCard');};
 $('logout').onclick=async()=>{if(sb)await sb.auth.signOut();user=null;shop=null;show('workspace',false);show('logout',false);show('authCard');$('who').textContent='Signed out'};
 $('createShop').onclick=async()=>{if(!sb||!user)return;const name=$('shopName').value.trim();if(!name){msg('shopStatus','Enter a shop name.',true);return}const {data,error}=await sb.from('shops').insert({owner_id:user.id,name}).select().single();if(error){msg('shopStatus',error.message,true);return}shop=data;show('setupCard',false);show('workspace');await loadProducts()};
 $('addProduct').onclick=async()=>{
@@ -98,7 +106,7 @@ $('exportCsv').onclick=()=>{
  if(!products.length){msg('productStatus','There are no products to export yet.',true);return}
  const quote=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
  const rows=[['Product','SKU','Category','Quantity','Unit Price INR','Low Stock At'],...products.map(p=>[p.name,p.sku,p.category,p.quantity,p.unit_price,p.low_stock_at])];
- const csv='\\uFEFF'+rows.map(row=>row.map(quote).join(',')).join('\\r\\n');
+ const csv='\uFEFF'+rows.map(row=>row.map(quote).join(',')).join('\r\n');
  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='shopstock-inventory.csv';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
  msg('productStatus','Inventory CSV exported.');
