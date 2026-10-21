@@ -14,7 +14,7 @@
 <div id="workspace" class="hidden">
 <div class="grid"><div class="card"><div class="tiny">Total products</div><div id="count" class="stat">0</div></div><div class="card"><div class="tiny">Units in stock</div><div id="units" class="stat">0</div></div><div class="card"><div class="tiny">Low / out of stock</div><div id="low" class="stat">0</div></div></div>
 <div class="card"><h2>Add a product</h2><div class="row"><div class="field"><label>Product name</label><input id="pName" placeholder="Product name"></div><div class="field"><label>SKU / code</label><input id="pSku" placeholder="Unique product code"></div><div class="field"><label>Category</label><input id="pCategory" placeholder="General"></div></div><div class="row"><div class="field"><label>Opening quantity</label><input id="pQty" type="number" min="0" step="1" value="0"></div><div class="field"><label>Unit price (₹)</label><input id="pPrice" type="number" min="0" step=".01" value="0"></div><div class="field"><label>Low-stock alert at</label><input id="pLow" type="number" min="0" step="1" value="5"></div><button id="addProduct" class="btn">Save product</button></div><div id="productStatus" class="tiny"></div></div>
-<div class="card"><div class="row" style="justify-content:space-between"><h2>Inventory</h2><button id="refresh" class="btn alt">Refresh</button></div><div class="tablewrap"><table><thead><tr><th>Product</th><th>SKU</th><th>Category</th><th>Quantity</th><th>Price</th><th>Stock action</th></tr></thead><tbody id="products"><tr><td colspan="6">Connect your project and sign in.</td></tr></tbody></table></div></div>
+<div class="card"><div class="row" style="justify-content:space-between"><h2>Inventory</h2><div class="row"><button id="exportCsv" class="btn alt">Export CSV</button><button id="refresh" class="btn alt">Refresh</button></div></div><div class="field"><label for="productSearch">Search products</label><input id="productSearch" type="search" placeholder="Search by name, SKU or category"></div><div class="tablewrap"><table><thead><tr><th>Product</th><th>SKU</th><th>Category</th><th>Quantity</th><th>Price</th><th>Stock action</th></tr></thead><tbody id="products"><tr><td colspan="6">Connect your project and sign in.</td></tr></tbody></table></div></div>
 <div class="card"><h2>Recent stock history</h2><div class="tablewrap"><table><thead><tr><th>Date</th><th>Product</th><th>Movement</th><th>Change</th><th>After</th><th>Note</th></tr></thead><tbody id="movements"><tr><td colspan="6">No movements loaded.</td></tr></tbody></table></div></div>
 </div>
 <div class="tiny">Security: this page uses only the public client key and relies on Supabase Row Level Security. Do not use real inventory until you have tested with separate accounts and reviewed the database policies. Stock adjustments use a database function so quantity and movement history are saved together. Test with separate accounts before real use.</div>
@@ -57,7 +57,9 @@ function renderProducts(){
  $('count').textContent=products.length;
  $('units').textContent=products.reduce((a,p)=>a+Number(p.quantity),0);
  $('low').textContent=products.filter(p=>Number(p.quantity)<=Number(p.low_stock_at)).length;
- $('products').innerHTML=products.length?products.map(p=>'<tr><td><b>'+esc(p.name)+'</b><br><span class="tiny">'+esc(p.category)+'</span></td><td>'+esc(p.sku)+'</td><td>'+esc(p.category)+'</td><td><span class="badge">'+Number(p.quantity)+'</span></td><td>₹'+Number(p.unit_price).toFixed(2)+'</td><td><button class="btn alt" data-stock="'+p.id+'" data-delta="1">+ Add</button><button class="btn alt" data-stock="'+p.id+'" data-delta="-1">− Sale</button><button class="btn danger" data-delete="'+p.id+'">Delete</button></td></tr>').join(''):'<tr><td colspan="6">No products yet. Add your first product above.</td></tr>';
+ const term=($('productSearch')?.value||'').trim().toLowerCase();
+ const visible=products.filter(p=>[p.name,p.sku,p.category].some(v=>String(v??'').toLowerCase().includes(term)));
+ $('products').innerHTML=visible.length?visible.map(p=>'<tr><td><b>'+esc(p.name)+'</b><br><span class="tiny">'+esc(p.category)+'</span></td><td>'+esc(p.sku)+'</td><td>'+esc(p.category)+'</td><td><span class="badge">'+Number(p.quantity)+'</span></td><td>₹'+Number(p.unit_price).toFixed(2)+'</td><td><button class="btn alt" data-stock="'+p.id+'" data-delta="1">+ Add</button><button class="btn alt" data-stock="'+p.id+'" data-delta="-1">− Sale</button><button class="btn danger" data-delete="'+p.id+'">Delete</button></td></tr>').join(''):'<tr><td colspan="6">'+(term?'No matching products.':'No products yet. Add your first product above.')+'</td></tr>';
 }
 async function loadMovements(){
  const {data,error}=await sb.from('stock_movements').select('id,created_at,movement_type,quantity_change,quantity_after,note,products(name)').eq('shop_id',shop.id).order('created_at',{ascending:false}).limit(20);
@@ -90,6 +92,16 @@ $('products').onclick=async e=>{
  if(del){const p=products.find(x=>x.id===del.dataset.delete);if(!p||!confirm('Delete '+p.name+'? Its movement history will also be deleted.'))return;const {error}=await sb.from('products').delete().eq('id',p.id).eq('shop_id',shop.id);if(error){msg('productStatus',error.message,true);return}await loadProducts();msg('productStatus','Product deleted.')}
 };
 $('refresh').onclick=loadProducts;
+$('productSearch').addEventListener('input',renderProducts);
+$('exportCsv').onclick=()=>{
+ if(!products.length){msg('productStatus','There are no products to export yet.',true);return}
+ const quote=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+ const rows=[['Product','SKU','Category','Quantity','Unit Price INR','Low Stock At'],...products.map(p=>[p.name,p.sku,p.category,p.quantity,p.unit_price,p.low_stock_at])];
+ const csv='\\uFEFF'+rows.map(row=>row.map(quote).join(',')).join('\\r\\n');
+ const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+ const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='shopstock-inventory.csv';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+ msg('productStatus','Inventory CSV exported.');
+};
 const url=localStorage.getItem('shopstock_supabase_url'),key=localStorage.getItem('shopstock_supabase_key');if(url)$('projectUrl').value=url;if(key)$('publicKey').value=key;if(url&&key){initClient();boot()}
 })();
 </script></body></html>
