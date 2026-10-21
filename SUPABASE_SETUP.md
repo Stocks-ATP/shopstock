@@ -18,7 +18,7 @@ This repository currently contains a static marketing page and a browser-only in
 2. In Supabase Project Settings / API, copy the Project URL and publishable key (or legacy anon key).
 3. Paste those two public values into the workspace and press Connect. Never use a service-role/secret key.
 4. Create an account, confirm your email if Supabase asks, then sign in and create your shop.
-5. Add a test product and test stock received / sale actions.
+5. Add a test product and test stock received / sale actions. Use product search and Export CSV to verify the inventory list can be filtered and downloaded.
 
 ## 4. Atomic stock update upgrade
 The cloud workspace now uses a database function so stock quantity and movement history update together. To enable it:
@@ -30,9 +30,9 @@ The cloud workspace now uses a database function so stock quantity and movement 
 - Row Level Security (RLS) is enabled and policies restrict records to the authenticated shop owner.
 - Never put a Supabase `service_role` / secret key in frontend code, HTML, mobile apps, screenshots, or GitHub.
 - A publishable/anon key is designed for client-side use only when RLS is correctly configured.
-- The current `app.html` uses browser local storage and does not yet call Supabase. Do not assume browser changes are cloud-synced.
+- The legacy `app.html` prototype still uses browser local storage. Use `cloud.html` for the Supabase-backed workspace; it saves to Supabase only after a project is connected and you are signed in.
 - Stock updates should eventually be handled by a database transaction/RPC so quantity changes and movement history cannot get out of sync.
-- Before production: add auth screens, shop onboarding, server-side validation, automated RLS tests, backups, privacy/terms, error monitoring, and payment-provider webhooks. Do not store card details yourself.
+- The cloud workspace includes signup/sign-in, password reset, shop onboarding, product search, CSV export, low-stock indicators, and stock movement history. Before production: test auth email redirects, RLS isolation with two accounts, backups, privacy/terms, error monitoring, and payment-provider webhooks. Do not store card details yourself.
 
 ## Planned core tables
 - `shops`: shop owner and workspace.
