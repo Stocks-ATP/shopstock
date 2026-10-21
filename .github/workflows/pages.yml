@@ -4,6 +4,11 @@ on:
     branches: [main]
     paths:
       - 'index.html'
+      - 'cloud.html'
+      - 'app.html'
+      - 'SUPABASE_SETUP.md'
+      - 'README.md'
+      - 'supabase/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 permissions:
