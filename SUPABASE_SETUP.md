@@ -13,7 +13,20 @@ This repository currently contains a static marketing page and a browser-only in
 3. Run it. Confirm `shops`, `products`, and `stock_movements` appear in Table Editor.
 4. Test with two separate test accounts before putting any real customer data into the app.
 
-## 3. Important security notes
+## 3. Open the cloud workspace
+1. Visit https://stocks-atp.github.io/shopstock/cloud.html (or use the “Open inventory workspace” button on the home page).
+2. In Supabase Project Settings / API, copy the Project URL and publishable key (or legacy anon key).
+3. Paste those two public values into the workspace and press Connect. Never use a service-role/secret key.
+4. Create an account, confirm your email if Supabase asks, then sign in and create your shop.
+5. Add a test product and test stock received / sale actions.
+
+## 4. Atomic stock update upgrade
+The cloud workspace now uses a database function so stock quantity and movement history update together. To enable it:
+1. Supabase Dashboard → SQL Editor → New query.
+2. Open `supabase/upgrade_atomic_stock.sql` in GitHub and copy its full contents.
+3. Paste and Run. Confirm the query succeeds before testing stock actions.
+
+## 5. Important security notes
 - Row Level Security (RLS) is enabled and policies restrict records to the authenticated shop owner.
 - Never put a Supabase `service_role` / secret key in frontend code, HTML, mobile apps, screenshots, or GitHub.
 - A publishable/anon key is designed for client-side use only when RLS is correctly configured.
@@ -27,4 +40,4 @@ This repository currently contains a static marketing page and a browser-only in
 - `stock_movements`: append-only history of stock changes.
 
 ## Current status
-Database starter schema only. No live sign-in, cloud sync, subscription billing, or production guarantee yet.
+Starter schema and cloud workspace UI are committed. The app still requires the project URL/public key entered by the owner, the atomic-stock upgrade SQL to be run, and end-to-end testing. Subscription billing is not enabled; do not treat this as production-ready until RLS and account-isolation tests pass.
